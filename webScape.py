@@ -2,7 +2,7 @@
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
-import time
+import os
 
 def scrape_youtube_trending():
     """Scrape YouTube trending page for video data"""
@@ -20,14 +20,10 @@ def scrape_youtube_trending():
     print(f"✅ Collected {len(videos)} trending videos.")
     return pd.DataFrame(videos)
 
-def save_scraped_data(df, filename="youtube_trending_data.csv"):
+def save_scraped_data(df, filename="data/youtube_trending_data.csv"):
     """Save scraped data to CSV"""
+    os.makedirs("data", exist_ok=True)
     df.to_csv(filename, index=False)
     print(f"💾 Data saved to {filename}")
-
-if __name__ == "__main__":
-    df = scrape_youtube_trending()
-    save_scraped_data(df)
-
 
 
