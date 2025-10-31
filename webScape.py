@@ -21,8 +21,17 @@ def scrape_youtube_trending():
     return pd.DataFrame(videos)
 
 def save_scraped_data(df, filename="youtube_trending_data.csv"):
-    """Save scraped data to CSV"""
+    """Save scraped data to CSV and show preview"""
     os.makedirs("data", exist_ok=True)
     output_file = os.path.join("data", filename)
     df.to_csv(output_file, index=False)
     print(f"💾 Data saved to {output_file}")
+
+    # Show first 5 examples
+    print("\n📊 Preview of first 5 trending videos:")
+    print(df.head())
+
+if __name__ == "__main__":
+    df = scrape_youtube_trending()
+    save_scraped_data(df)
+
