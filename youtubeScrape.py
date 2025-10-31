@@ -1,12 +1,19 @@
-
 # youtubeScrape.py
 from googleapiclient.discovery import build
 import pandas as pd
+from dotenv import load_dotenv
+import os
 
-def fetch_youtube_data(api_key, query="music", max_results=50):
+# Load environment variables from .env file
+load_dotenv()
+
+def fetch_youtube_data(query="music", max_results=50):
     """Fetch video metadata using YouTube Data API"""
-    youtube = build("youtube", "v3", developerKey=api_key)
+    api_key = os.getenv("YOUTUBE_API_KEY")
+    if not api_key:
+        raise ValueError("❌ No API key found! Please set YOUTUBE_API_KEY in your .env file.")
 
+    youtube = build("youtube", "v3", developerKey=api_key)
     request = youtube.search().list(
         q=query,
         part="snippet",
@@ -26,11 +33,8 @@ def fetch_youtube_data(api_key, query="music", max_results=50):
         video_data.append(video)
 
     df = pd.DataFrame(video_data)
-    df.to_csv("youtube_api_data.csv", index=False)
-    print(f"✅ Saved {len(df)} videos from API to youtube_api_data.csv")
+    os.makedirs("data", exist_ok=True)
+    output_file = "data/youtube_api_data.csv"
+    df.to_csv(output_file, index=False)
+    print(f"✅ Saved {len(df)} videos from API to {output_file}")
     return df
-
-if __name__ == "__main__":
-    API_KEY = "YOUR_API_KEY_HERE"
-    fetch_youtube_data(API_KEY, query="technology")
-
