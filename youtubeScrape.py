@@ -36,7 +36,13 @@ def fetch_youtube_data(query="music", max_results=50):
     output_file = os.path.join("data", "youtube_api_data.csv")
     df.to_csv(output_file, index=False)
     print(f"✅ Saved {len(df)} videos from API to {output_file}")
-    print("\n📊 Preview of fetched data:")
+
+    # Show first 5 examples
+    print("\n📊 Preview of first 5 videos from YouTube API:")
     print(df.head())
+
     return df
+
+if __name__ == "__main__":
+    fetch_youtube_data(query="technology")
 
