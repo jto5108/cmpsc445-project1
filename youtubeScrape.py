@@ -4,8 +4,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env file
-load_dotenv()
+load_dotenv()  # load .env file
 
 def fetch_youtube_data(query="music", max_results=50):
     """Fetch video metadata using YouTube Data API"""
@@ -34,7 +33,10 @@ def fetch_youtube_data(query="music", max_results=50):
 
     df = pd.DataFrame(video_data)
     os.makedirs("data", exist_ok=True)
-    output_file = "data/youtube_api_data.csv"
+    output_file = os.path.join("data", "youtube_api_data.csv")
     df.to_csv(output_file, index=False)
     print(f"✅ Saved {len(df)} videos from API to {output_file}")
+    print("\n📊 Preview of fetched data:")
+    print(df.head())
     return df
+
