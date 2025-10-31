@@ -1,49 +1,44 @@
-
 # main.py
+import os
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
-import matplotlib.pyplot as plt
-import numpy as np
+from youtubeScrape import fetch_youtube_data
+from webScrape import scrape_youtube_trending, save_scraped_data
 
-# -------------------------------
-# Load Data
-# -------------------------------
-web_df = pd.read_csv("youtube_trending_data.csv")
-api_df = pd.read_csv("youtube_api_data.csv")
+def main():
+    os.makedirs("data", exist_ok=True)
 
-# -------------------------------
-# Preprocess (example simplification)
-# -------------------------------
-web_df["title_length"] = web_df["title"].apply(lambda x: len(str(x)))
-api_df["title_length"] = api_df["title"].apply(lambda x: len(str(x)))
+    # -----------------------------
+    # 1️⃣ YouTube API fetch
+    # -----------------------------
+    print("🔹 Starting YouTube API fetch...")
+    api_df = fetch_youtube_data(query="technology")
 
-# Dummy numeric target (since real views are missing in web scrape)
-web_df["views"] = np.random.randint(1000, 1000000, len(web_df))
-api_df["views"] = np.random.randint(1000, 1000000, len(api_df))
+    # -----------------------------
+    # 2️⃣ Web scrape trending page
+    # -----------------------------
+    print("\n🔹 Starting YouTube Trending scrape...")
+    trending_df = scrape_youtube_trending()
+    save_scraped_data(trending_df)
 
-# -------------------------------
-# Train Model Function
-# -------------------------------
-def train_model(df, label):
-    X = df[["title_length"]]
-    y = df["views"]
+    # -----------------------------
+    # 3️⃣ Merge datasets
+    # -----------------------------
+    combined_file = os.path.join("data", "combined_youtube_data.csv")
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    model.fit(X_train, y_train)
+    api_df["source"] = "API"
+    trending_df["source"] = "Trending"
 
-    y_pred = model.predict(X_test)
-    r2 = r2_score(y_test, y_pred)
-    print(f"✅ {label} Model R²: {r2:.3f}")
+    combined_df = pd.merge(
+        api_df, trending_df, how="outer", left_on="title", right_on="title", suffixes=("_api", "_trending")
+    )
 
-    plt.bar(["title_length"], model.feature_importances_)
-    plt.title(f"Feature Importance ({label})")
-    plt.show()
+    combined_df.to_csv(combined_file, index=False)
+    print(f"\n✅ Combined CSV saved to {combined_file}")
+    print("\n📊 Preview of combined data:")
+    print(combined_df.head())
 
-# -------------------------------
-# Train Both Models
-# -------------------------------
-train_model(web_df, "Web-Scraped Data")
-train_model(api_df, "YouTube API Data")
+    print("\n🎉 All tasks completed successfully!")
+
+if __name__ == "__main__":
+    main()
+
