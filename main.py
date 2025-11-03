@@ -1,44 +1,30 @@
-# main.py
-import os
-import pandas as pd
+import os, time, pandas as pd
+from dotenv import load_dotenv
+from webScrape import scrape_youtube_from_google
 from youtubeScrape import fetch_youtube_data
-from webScrape import scrape_youtube_trending, save_scraped_data
+from train_models import train_model
 
 def main():
-    os.makedirs("data", exist_ok=True)
+    load_dotenv()
+    api_key = os.getenv("YOUTUBE_API_KEY")
 
-    # -----------------------------
-    # 1️⃣ YouTube API fetch
-    # -----------------------------
-    print("🔹 Starting YouTube API fetch...")
-    api_df = fetch_youtube_data(query="technology")
+    print("=== DATA COLLECTION ===")
+    start = time.time()
+    df_web = scrape_youtube_from_google(query="technology videos", max_results=10)
+    df_api = fetch_youtube_data(api_key, query="technology", max_results=20)
+    print(f"Data collection finished in {time.time()-start:.1f}s\n")
 
-    # -----------------------------
-    # 2️⃣ Web scrape trending page
-    # -----------------------------
-    print("\n🔹 Starting YouTube Trending scrape...")
-    trending_df = scrape_youtube_trending()
-    save_scraped_data(trending_df)
+    print("=== MODEL TRAINING ===")
+    model_web, _, _ = train_model(df_web, "Web-Scraped Data")
+    model_api, _, _ = train_model(df_api, "YouTube API Data")
 
-    # -----------------------------
-    # 3️⃣ Merge datasets
-    # -----------------------------
-    combined_file = os.path.join("data", "combined_youtube_data.csv")
-
-    api_df["source"] = "API"
-    trending_df["source"] = "Trending"
-
-    combined_df = pd.merge(
-        api_df, trending_df, how="outer", left_on="title", right_on="title", suffixes=("_api", "_trending")
-    )
-
-    combined_df.to_csv(combined_file, index=False)
-    print(f"\n✅ Combined CSV saved to {combined_file}")
-    print("\n📊 Preview of combined data:")
-    print(combined_df.head())
-
-    print("\n🎉 All tasks completed successfully!")
+    print("=== COMPARISON SUMMARY ===")
+    summary = pd.DataFrame([
+        {"Source": "Web-Scraped", "Samples": len(df_web)},
+        {"Source": "API", "Samples": len(df_api)}
+    ])
+    print(summary)
+    summary.to_csv("data/comparison_summary.csv", index=False)
 
 if __name__ == "__main__":
     main()
-
