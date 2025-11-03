@@ -1,55 +1,48 @@
-# webScrape.py
-# webScrape.py
-import requests
-from bs4 import BeautifulSoup
+from googleapiclient.discovery import build
 import pandas as pd
+from dotenv import load_dotenv
 import os
-import urllib.parse
 
-def scrape_youtube_from_google(query="technology videos", max_results=20):
-    """Scrape YouTube video links from Google search results"""
-    search_query = f"site:youtube.com {query}"
-    encoded_query = urllib.parse.quote(search_query)
-    url = f"https://www.google.com/search?q={encoded_query}"
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/141.0.0.0 Safari/537.36"
-        )
-    }
+def fetch_youtube_data(api_key, query="technology", max_results=50):
+    youtube = build("youtube", "v3", developerKey=api_key)
 
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.text, "html.parser")
+    request = youtube.search().list(
+        q=query, part="snippet", type="video", maxResults=max_results
+    )
+    response = request.execute()
 
     videos = []
-    for link in soup.select("a"):
-        href = link.get("href")
-        if href and "youtube.com/watch" in href:
-            # Clean up the URL
-            clean_url = href.replace("/url?q=", "").split("&")[0]
-            videos.append({"url": clean_url})
+    for item in response["items"]:
+        video_id = item["id"]["videoId"]
+        snippet = item["snippet"]
 
-    # Remove duplicates and limit results
-    videos = pd.DataFrame(videos).drop_duplicates().head(max_results)
+        stats_request = youtube.videos().list(
+            part="statistics,snippet", id=video_id
+        )
+        stats_response = stats_request.execute()
 
-    # Optional: extract video titles from URLs
-    videos["title"] = videos["url"].apply(lambda u: urllib.parse.unquote(u.split("v=")[-1])[:50])
+        if not stats_response["items"]:
+            continue
+        vid = stats_response["items"][0]
+        stat = vid.get("statistics", {})
 
-    print(f"✅ Found {len(videos)} YouTube video links from Google for '{query}'.")
-    return videos
+        videos.append({
+            "title": snippet.get("title"),
+            "channel": snippet.get("channelTitle"),
+            "views": stat.get("viewCount", 0),
+            "likes": stat.get("likeCount", 0),
+            "comments": stat.get("commentCount", 0),
+            "upload_date": snippet.get("publishedAt"),
+            "category": snippet.get("categoryId", "Unknown"),
+        })
 
-def save_scraped_data(df, filename="youtube_trending_data.csv"):
-    """Save scraped data to CSV and show preview"""
-    os.makedirs("data", exist_ok=True)
-    output_file = os.path.join("data", filename)
-    df.to_csv(output_file, index=False)
-    print(f"💾 Data saved to {output_file}")
-
-    # Show first 5 examples
-    print("\n📊 Preview of first 5 scraped videos:")
-    print(df.head())
+    df = pd.DataFrame(videos)
+    df.to_csv("data/youtube_api_data.csv", index=False)
+    print(f"Saved {len(df)} API videos to data/youtube_api_data.csv")
+    return df
 
 if __name__ == "__main__":
-    df = scrape_youtube_from_google(query="technology videos", max_results=20)
-    save_scraped_data(df)
+    load_dotenv()
+    key = os.getenv("YOUTUBE_API_KEY")
+    fetch_youtube_data(key)
+
