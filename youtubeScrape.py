@@ -1,48 +1,46 @@
-# youtubeScrape.py
-from googleapiclient.discovery import build
-import pandas as pd
-from dotenv import load_dotenv
-import os
+import requests, re, time, pandas as pd
+from bs4 import BeautifulSoup
 
-load_dotenv()  # load .env file
+def get_youtube_links_from_google(query="technology videos", max_results=10):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    url = f"https://www.google.com/search?q={query.replace(' ', '+')}+site:youtube.com&num={max_results}"
+    soup = BeautifulSoup(requests.get(url, headers=headers).text, "html.parser")
+    links = []
+    for a in soup.select("a[href^='https://www.youtube.com/watch']"):
+        href = a["href"].split("&")[0]
+        if href not in links:
+            links.append(href)
+    return links
 
-def fetch_youtube_data(query="music", max_results=50):
-    """Fetch video metadata using YouTube Data API"""
-    api_key = os.getenv("YOUTUBE_API_KEY")
-    if not api_key:
-        raise ValueError("❌ No API key found! Please set YOUTUBE_API_KEY in your .env file.")
+def scrape_youtube_video_page(url):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    s = BeautifulSoup(requests.get(url, headers=headers).text, "html.parser")
+    def meta(prop): 
+        tag = s.find("meta", itemprop=prop)
+        return tag["content"] if tag and tag.has_attr("content") else "N/A"
 
-    youtube = build("youtube", "v3", developerKey=api_key)
-    request = youtube.search().list(
-        q=query,
-        part="snippet",
-        type="video",
-        maxResults=max_results
-    )
-    response = request.execute()
+    return {
+        "title": meta("name") or meta("title"),
+        "channel": meta("channelId"),
+        "views": "N/A",
+        "likes": "N/A",
+        "comments": "N/A",
+        "upload_date": meta("datePublished"),
+        "category": meta("genre"),
+    }
 
-    video_data = []
-    for item in response["items"]:
-        video = {
-            "title": item["snippet"]["title"],
-            "channel": item["snippet"]["channelTitle"],
-            "publish_date": item["snippet"]["publishedAt"],
-            "description": item["snippet"]["description"]
-        }
-        video_data.append(video)
-
-    df = pd.DataFrame(video_data)
-    os.makedirs("data", exist_ok=True)
-    output_file = os.path.join("data", "youtube_api_data.csv")
-    df.to_csv(output_file, index=False)
-    print(f"✅ Saved {len(df)} videos from API to {output_file}")
-
-    # Show first 5 examples
-    print("\n📊 Preview of first 5 videos from YouTube API:")
-    print(df.head())
-
+def scrape_youtube_from_google(query="technology videos", max_results=10):
+    links = get_youtube_links_from_google(query, max_results)
+    data = []
+    for i, link in enumerate(links, 1):
+        try:
+            print(f"Scraping {i}/{len(links)}: {link}")
+            data.append(scrape_youtube_video_page(link))
+            time.sleep(2)
+        except Exception as e:
+            print("Error:", e)
+    df = pd.DataFrame(data)
+    df.to_csv("data/youtube_scraped_data.csv", index=False)
+    print(f"Saved {len(df)} scraped videos to data/youtube_scraped_data.csv")
     return df
-
-if __name__ == "__main__":
-    fetch_youtube_data(query="technology")
 
