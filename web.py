@@ -12,5 +12,6 @@ web_data = [
 df_web = pd.DataFrame(web_data)
 
 # Save CSV
+csv_path = "/Users/jto5108/cmpsc455-project1/Youtube_Video_Data.csv"
 df_web.to_csv("Youtube_Video_Data.csv", index=False)
 print("Web CSV created: Youtube_Video_Data.csv")
